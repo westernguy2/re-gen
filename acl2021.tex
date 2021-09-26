@@ -97,7 +97,11 @@ Learning how to create the perfect regular expression can be difficult and frust
 
 
 \section{Related Work}
-The industry leading language model to generate regular expressions is SemRegex. One recent advance in the field of using language description to generate Regex was the creation of SoftRegex. \cite{park-etal-2019-softregex} used SemRegex but introduced a EQ\_Reg model which computes the similarity of two regular expressions and determines a reward for the reinforced learned model in SemRegex, allowing for a softening for the comparison of two regular expressions. 
+The industry leading language model to generate regular expressions is SemRegex. \cite{zhong-etal-2018-semregex} uses a semantics based approach to the problem by using semantic correctness instead of exact correctness. They then use policy gradient methods \cite{Williams:92} to determine the gradient of a semantic based objective (as opposed to using the maximum liklihood estimate or MLE) and subsequently optimize. The semantic based objective uses a reward function $r(R)$ where $R$ is the predicted regular expression. $r(R)$ is defined as $1$ if the predicted regular expression is semantically the same as the label for the given natural langauge query (the ground truth), and $0$ if not. To determine is two regular expressions are semantically equivalent, \cite{zhong-etal-2018-semregex} converts the regular expressions to their minimum DFA (Deterministic Finite Automaton). If these minimum DFAs are equivalent, then the regular expressions themselves are equivalent. 
+
+Since there are an infinite number of regular expressions that may have the same minimum DFA as the ground truth, \cite{zhong-etal-2018-semregex} utilizes Monte Carlo sampling to estimate the expected reward of the output of a model. This estimate is then used by the REINFORCE policy gradient model \cite{Williams:92} which utilizes a baseline of the mean reward of the samples to reduce variance.
+
+One recent advance in the field of using language description to generate Regex was the creation of SoftRegex. \cite{park-etal-2019-softregex} used SemRegex but introduced a EQ\_Reg model which computes the similarity of two regular expressions and determines a reward for the reinforced learned model in SemRegex, allowing for a softening for the comparison of two regular expressions. 
 
 
 \section{Outline for Re-Gen}
