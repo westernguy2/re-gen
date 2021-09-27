@@ -101,7 +101,7 @@ The industry leading language model to generate regular expressions is SemRegex.
 
 Since there are an infinite number of regular expressions that may have the same minimum DFA as the ground truth, \cite{zhong-etal-2018-semregex} utilizes Monte Carlo sampling to estimate the expected reward of the output of a model. This estimate is then used by the REINFORCE policy gradient model \cite{Williams:92} which utilizes a baseline of the mean reward of the samples to reduce variance.
 
-One recent advance in the field of using language description to generate Regex was the creation of SoftRegex. \cite{park-etal-2019-softregex} used SemRegex but introduced a EQ\_Reg model which computes the similarity of two regular expressions and determines a reward for the reinforced learned model in SemRegex, allowing for a softening for the comparison of two regular expressions. 
+One recent advance in the field of using language description to generate Regex was the creation of SoftRegex. \cite{park-etal-2019-softregex} used SemRegex but improved its reward function. The reward function used in SemRegex is PSPACE-complete, so it is incredibly slow to compute. Not only that, but the reward function only outputs a binary value, which is limiting in describing the similarity of two regular expressions. SoftRegex uses a neural net model to estimate the similarity between two regular expressions, assigning a probability as to how similar they are. This probability becomes the value of the reward. This creates a softening for the comparison of two regular expressions while speeding up the algorithm without compromising on performance. 
 
 
 \section{Outline for Re-Gen}
