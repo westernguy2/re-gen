@@ -17,6 +17,7 @@
 \usepackage[hyperref]{acl2021}
 \usepackage{times}
 \usepackage{latexsym}
+\usepackage{amsmath}
 \renewcommand{\UrlFont}{\ttfamily\small}
 
 % This is not strictly necessary, and may be commented out,
@@ -24,7 +25,7 @@
 % and will typically save some space.
 \usepackage{microtype}
 
-% \aclfinalcopy % Uncomment this line for the final submission
+\aclfinalcopy % Uncomment this line for the final submission
 %\def\aclpaperid{***} %  Enter the acl Paper ID here
 
 %\setlength\titlebox{5cm}
@@ -35,7 +36,7 @@
 
 \newcommand\BibTeX{B\textsc{ib}\TeX}
 
-\title{Working title: Re-Gen}
+\title{Re-Gen: Generating Regex through Modern Architectural Optimizations}
 
 \author{Kunal Agarwal \\
   University of California, Berkeley \\
@@ -53,7 +54,7 @@
 % The document itself conforms to its own specifications, and is therefore an example of what your manuscript should look like.
 % These instructions should be used for both papers submitted for review and for final versions of accepted papers.
 % Authors are asked to conform to all the directions reported in this document.
-Insert Abstract Here
+This paper explores the latest research in the space of regular expression generation from text descriptions. It also proposes a few enhancements that could be used to improve upon the most current models.
 \end{abstract}
 
 % \section{Credits}
@@ -81,36 +82,33 @@ Insert Abstract Here
 
 \section{Introduction}
 
-Learning how to create the perfect regular expression can be difficult and frustrating. It is difficult to take an idea of what a matching should look like and translate it into a literal series of regular expression characters. However, regular expressions can be considered a syntactical language itself, just like a programming language. It should be possible to parse a request in English and use it to build a regular expression that satisfies the constraints of the request. There is already prior work in this area, but it should be possible to do better with recent advance in natural language processing.
+Regular expressions (Regex) are a fundamental part of the text processing and analysis toolkit. Regex is widely used in preprocessing steps for textual data from removing punctuation to input validation in form fields. Regular expressions offer a powerful syntax to abstract common patterns within text, but its expressiveness comes at the cost of a high learning curve. Small idiosyncrasies when creating Regex make it difficult for beginners to learn to build their own expressions, and can continue to be challenging for the experienced \cite{Friedl:02}. The consequences for incorrect regex can be drastic as well as failure in input validation can open applications to several security flaws. 
 
-
-\section{Motivation for Re-Gen}
-
-\begin{enumerate}
-	\item
-	Computer Science Education
-
-	\item
-	Makes SWE jobs easier (eg. Github Copilot)
-
-\end{enumerate}
-
-Regular expressions (Regex) are a fundamental part of the text processing and analysis toolkit. Regex is widely used in preprocessing steps for textual data from removing punctuation or HTML artifacts to input validation in form fields. It is the backbone of search and replace operations among large pieces of text. Regular expressions offer a powerful syntax to abstract common patterns within text, but its expressiveness comes at the cost of a high learning curve. 
-
+However, the mechanics of creating an expression through the combination of metacharacters, grouping characters, and ASCII characters are identical to that of the processes underlying word and sentence formation in natural language. Regex can be considered a language in and of itself, so it should be possible to parse specifications in English and synthesize regular expression that satisfies the constraints of the request in a process not unlike translation between two natural languages. A regex generator from natural language presents itself as a useful tool in education and engineering environments. There is already prior work in this area, but it should be possible to do better with recent advances in natural language processing.
+%New students can experiment with the generator to build an intuition for regex syntax and meaning, while experienced programmers can simplify the process of creating secure expressions in their production applications.
 
 \section{Related Work}
-There are two major approaches that have been taken in translating natural language queries into a corresponding regular expression: a syntactic or semantic approach. The syntactic approach frames this program synthesis question as a machine translation task. A machine translation task... \cite{locascio-etal-2016-neural}
+There are two major approaches that have been taken in translating natural language queries into a corresponding regular expression: a syntactic or semantic approach. The syntactic approach frames this program synthesis question as a machine translation task; it optimizes an objective function that penalizes translations that are not syntactically equivalent (do not have the exact same characters). A semantic approach uses an objective function that encourages translations that have the same inherent meaning.
 
-However, the industry leading language model to generate regular expressions is SemRegex \cite{zhong-etal-2018-semregex} which relies on a semantics based approach and determines the correctness of a regular expression through semantic equivalence. They use policy gradient methods \cite{Williams:92} to determine the gradient of a semantic based objective (as opposed to using the maximum liklihood estimate or MLE) and subsequently optimize. The semantic based objective uses a reward function $r(R)$ where $R$ is the predicted regular expression. $r(R)$ is defined as $1$ if the predicted regular expression is semantically the same as the label for the given natural langauge query (the ground truth), and $0$ if not. To determine is two regular expressions are semantically equivalent, \cite{zhong-etal-2018-semregex} converts the regular expressions to their minimum DFA (Deterministic Finite Automaton). If these minimum DFAs are equivalent, then the regular expressions themselves are equivalent. 
+One of the first truly successful attempts for translating a sentence to an expression was SemUnify \cite{kushman-barzilay-2013-using}, but it relied on prior domain knowledge and so it was limited in its application. The followup to this was a generalized regex synthesis model called Deep-Regex \cite{locascio-etal-2016-neural} that took advantage of the advent of deep learning. Deep-Regex utilizes a recurrent neural network architecture with attention for the translation task, specifically using LSTM (Long Short-term Memory) cells operating after a word-embedding layer. The LSTMs consist of encoders and decoders which encode the inputted embeddings for the input text description which are decoded into the embeddings for the outputted regular expression. However, since Deep-Regex subscribes to the syntactic approach, the optimal parameters are generated through maximum likelihood estimation (MLE) which discourages the translation of semantically equivalent expressions and leads to unnecessary drops in accuracy.
 
-Since there are an infinite number of regular expressions that may have the same minimum DFA as the ground truth, \cite{zhong-etal-2018-semregex} utilizes Monte Carlo sampling to estimate the expected reward of the output of a model. This estimate is then used by the REINFORCE policy gradient model \cite{Williams:92} which utilizes a baseline of the mean reward of the samples to reduce variance.
+The current leading language model for regex synthesis, SemRegex \cite{zhong-etal-2018-semregex}, relies on a semantics based approach to determine the correctness of a regular expression. They use policy gradient methods \cite{Williams:92} to determine the gradient of a semantic based objective (as opposed to the MLE) and subsequently optimize. Through the use of a reward function $r$, maximizing the objective function encourages semantic correctness \cite{zhong-etal-2018-semregex}. $r(\cdot)$ is defined as $1$ if the predicted regular expression is semantically equivalent with the label for the given natural language query (the ground truth), and $0$ otherwise. To determine if two regular expressions are semantically equivalent, \cite{zhong-etal-2018-semregex} converts the regular expressions to their minimum DFA (Deterministic Finite Automaton). If these minimum DFAs are equivalent, then the regular expressions themselves are equivalent. 
 
-More recently, a new semantics-based model SoftRegex \cite{park-etal-2019-softregex} emerged as a an extension of SemRegex. While SemRegex was revolutionary in its approach to Regex generation, it was limited by its computational feasibility. Determining the semantic equivalence of two regular expressions through conversion to DFAs is a known PSPACE-complete problem, and SemRegex's reward function relied on on this step. Furthermore, the reward function was limited in its expressiveness, only outputting a binary value which constrained its ability to describe a spectrum of similarity between tro regular expressions. SoftRegex uses a neural network architecture, dubbed EQ\_Reg, to estimate the similarity between two regular expressions, assigning a probability as to how similar they are. This probability becomes the value of the reward. This creates a softening for the comparison of two regular expressions while speeding up the algorithm without compromising on performance. 
+Since there are an infinite number of regular expressions that may have the same minimum DFA as the ground truth, \cite{zhong-etal-2018-semregex} utilizes Monte Carlo sampling to estimate the expected reward of the output of a model. This estimate is then used by the REINFORCE policy gradient model \cite{Williams:92} which utilizes a baseline of the mean reward of the samples to reduce variance. The final gradient estimate looks like the following: \begin{align*} \nabla_{\theta} & J(\theta) \approx \\ & \sum_{(S^{(i)}, R^{(i})} \sum_{j=1}^M \frac{1}{M}(r(R_j)-b) \nabla_{\theta}\log p_{\theta}(R_j | S^{(i)}) \end{align*}
+for $R_1, ..., R_M$ where $R_i$ is a regular expression sampled from the model, and $b = \sum_{j^{\prime}}^M \frac{1}{M}r(R_{j^{\prime}})$ \cite{zhong-etal-2018-semregex}.
+
+More recently, a new semantics-based model SoftRegex \cite{park-etal-2019-softregex} emerged as a an extension of SemRegex. While SemRegex was revolutionary in its approach to Regex generation, it was limited by its computational feasibility. Determining the semantic equivalence of two regular expressions through conversion to DFAs is a known PSPACE-complete problem, and SemRegex's reward function relied on on this step. Furthermore, the reward function was limited in its expressiveness, only outputting a binary value which constrained its ability to describe a spectrum of similarity between two regular expressions. SoftRegex uses an LSTM-based neural network architecture, EQ\_Reg, to estimate the similarity between two regular expressions, assigning a probability of similarity between the expressions, the output of which is the value of the reward function. By softening for the comparison of two regular expressions, SoftRegex trades a negligent drop in performance while greatly speeding up training time \cite{park-etal-2019-softregex}. 
 
 
 \section{Outline for Re-Gen}
 
-Our plan is to improve on the work done in this area. We hope to build on SemRegex and add a different optimization to improve accuracy and increase speed. something something, something something
+We hope to improve upon on SoftRegex through architectural changes in computing the similarity score and optimization of the policy gradient add a different optimization to improve accuracy and increase speed.
+
+The EQ\_Reg model takes two regular expressions as input and passes it through each of their own LSTMs to generate a latent vector representation. The latent vectors are concatenated and passed through a fully connected layer to generate the similarity measurement. Instead of using an RNN architecture to generate latent vector representations, we can switch to a transformer-based architecture to encode words. Transformer architecture generally outperforms RNNs for longer sequences due to positional embeddings, and have the advantage of pretraining of large corpuses. As additional investigations, we will experiment with adding more downstream fully connected layer and can create an ensemble model for computing the final similarity score. 
+
+Now, looking at improving the REINFORCE algorithm, there are a number of different optimizations that could be used. One particular place to improve upon is using a more optimal baseline. While the average baseline used in SemRegex and SoftRegex generally works well \cite{Williams:92}, we want to explore how much of a performance improvement there would be if the optimal baseline is used. Looking at the gradient estimate defined earlier, we would want to replace the baseline $b$ with this optimal baseline instead of just using the average reward. The optimal baseline, as derived in \cite{peters-schaal-2008}, would look like: $$ b = \frac{\sum_{j=1}^M \frac{1}{M} (\nabla_{\theta} \log p_{\theta}(R_j | S^{(i)}))^2 r(R_j)}{\sum_{j=1}^M \frac{1}{M} (\nabla_{\theta} \log p_{\theta}(R_j | S^{(i)}))^2}$$ By using the optimal baseline, we are decreasing the variance of the policy gradient model without increasing bias, which should provide improvements in the performance of the model. However, since there is more computation required to compute the baseline for each sampled expression at each iteration, there is far more computation, which may slow down the algorithm.
+
+The authors (Parth and Kunal) are both working on this project. They will divide up the work equally and work on different parts of the project together. This includes writing the code, running experiments, and writing the paper.
 
 
 
@@ -492,9 +490,9 @@ Our plan is to improve on the work done in this area. We hope to build on SemReg
 % \noindent
 % Then recompile, find the problematic citation, and rewrite the sentence containing the citation. (See, {\em e.g.}, \url{http://tug.org/errors.html})
 
-\section*{Acknowledgments}
+% \section*{Acknowledgments}
 
-We'd like to acknowledge Professor David Bamman for his insight on this project proposal.
+% We'd like to acknowledge Professor David Bamman for his insight on this project proposal.
 
 \bibliographystyle{acl_natbib}
 \bibliography{anthology,acl2021}
