@@ -99,7 +99,7 @@ Regular expressions (Regex) are a fundamental part of the text processing and an
 
 
 \section{Related Work}
-There are two major approaches that have been taken in translating natural language queries into a corresponding regular expression: a syntactic or semantic approach. The syntactic approach frames this program synthesis question as a machine translation task. A machine translation task 
+There are two major approaches that have been taken in translating natural language queries into a corresponding regular expression: a syntactic or semantic approach. The syntactic approach frames this program synthesis question as a machine translation task. A machine translation task... \cite{locascio-etal-2016-neural}
 
 However, the industry leading language model to generate regular expressions is SemRegex \cite{zhong-etal-2018-semregex} which relies on a semantics based approach and determines the correctness of a regular expression through semantic equivalence. They use policy gradient methods \cite{Williams:92} to determine the gradient of a semantic based objective (as opposed to using the maximum liklihood estimate or MLE) and subsequently optimize. The semantic based objective uses a reward function $r(R)$ where $R$ is the predicted regular expression. $r(R)$ is defined as $1$ if the predicted regular expression is semantically the same as the label for the given natural langauge query (the ground truth), and $0$ if not. To determine is two regular expressions are semantically equivalent, \cite{zhong-etal-2018-semregex} converts the regular expressions to their minimum DFA (Deterministic Finite Automaton). If these minimum DFAs are equivalent, then the regular expressions themselves are equivalent. 
 
@@ -494,7 +494,7 @@ Our plan is to improve on the work done in this area. We hope to build on SemReg
 
 \section*{Acknowledgments}
 
-I'd like to acknowledge...
+We'd like to acknowledge Professor David Bamman for his insight on this project proposal.
 
 \bibliographystyle{acl_natbib}
 \bibliography{anthology,acl2021}
