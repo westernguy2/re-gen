@@ -18,6 +18,7 @@
 \usepackage{times}
 \usepackage{latexsym}
 \usepackage{amsmath}
+\usepackage{graphicx}
 \renewcommand{\UrlFont}{\ttfamily\small}
 
 % This is not strictly necessary, and may be commented out,
@@ -36,11 +37,11 @@
 
 \newcommand\BibTeX{B\textsc{ib}\TeX}
 
-\title{Re-Gen: Generating Regex through Modern Architectural Optimizations}
+\title{Generating Regex through Modern Architectural Optimizations}
 
 \author{Kunal Agarwal \\
   University of California, Berkeley \\
-  \texttt{kagarwal@berkeley.edu} \\\And
+  \texttt{kagarwal2@berkeley.edu} \\\And
   Parth Baokar \\
   University of California, Berkeley \\
   \texttt{parthbaokar@berkeley.edu} \\}
@@ -54,7 +55,7 @@
 % The document itself conforms to its own specifications, and is therefore an example of what your manuscript should look like.
 % These instructions should be used for both papers submitted for review and for final versions of accepted papers.
 % Authors are asked to conform to all the directions reported in this document.
-This paper explores the latest research in the space of regular expression generation from text descriptions. It also proposes a few enhancements that could be used to improve upon the most current models.
+This paper explores the latest research in the space of regular expression generation from text descriptions, as well as explores the popular models these regular expression generation models use. It then proceeds to propose a few enhancements that could be used to improve upon the most current models. The paper then explores preliminary attempts at implementing these proposals and reflects on what went wrong and what should be done for future work in this area.
 \end{abstract}
 
 % \section{Credits}
@@ -84,33 +85,187 @@ This paper explores the latest research in the space of regular expression gener
 
 Regular expressions (Regex) are a fundamental part of the text processing and analysis toolkit. Regex is widely used in preprocessing steps for textual data from removing punctuation to input validation in form fields. Regular expressions offer a powerful syntax to abstract common patterns within text, but its expressiveness comes at the cost of a high learning curve. Small idiosyncrasies when creating Regex make it difficult for beginners to learn to build their own expressions, and can continue to be challenging for the experienced \cite{Friedl:02}. The consequences for incorrect regex can be drastic as well as failure in input validation can open applications to several security flaws. 
 
-However, the mechanics of creating an expression through the combination of metacharacters, grouping characters, and ASCII characters are identical to that of the processes underlying word and sentence formation in natural language. Regex can be considered a language in and of itself, so it should be possible to parse specifications in English and synthesize regular expression that satisfies the constraints of the request in a process not unlike translation between two natural languages. A regex generator from natural language presents itself as a useful tool in education and engineering environments. There is already prior work in this area, but it should be possible to do better with recent advances in natural language processing.
-%New students can experiment with the generator to build an intuition for regex syntax and meaning, while experienced programmers can simplify the process of creating secure expressions in their production applications.
+However, the mechanics of creating an expression through the combination of metacharacters, grouping characters, and ASCII characters are identical to that of the processes underlying word and sentence formation in natural language. Regex can be considered a language in and of itself, so it should be possible to parse specifications in English and synthesize regular expression that satisfies the constraints of the request in a process not unlike translation between two natural languages. A regex generator from natural language presents itself as a useful tool in education and engineering environments. New students can experiment with the generator to build an intuition for regex syntax and meaning, while experienced programmers can simplify the process of creating secure expressions in their production applications. 
+
+In this work, we present new and updated approaches to generating regex through modern transformer architectures. These large language models could serve as ideal candidates for capturing the semantic nuance in translating regex. We pre-trained a new BERT model, ReBERTh, on a sizable corpus and used the embeddings to attempt to generate more accurate similarity scores for two regular expressions. We additionally fine-tuned a T5 transformer to directly translate queries into regex to hopefully take advantage of transfer learning for this difficult translation problem.
 
 \section{Related Work}
 There are two major approaches that have been taken in translating natural language queries into a corresponding regular expression: a syntactic or semantic approach. The syntactic approach frames this program synthesis question as a machine translation task; it optimizes an objective function that penalizes translations that are not syntactically equivalent (do not have the exact same characters). A semantic approach uses an objective function that encourages translations that have the same inherent meaning.
 
-One of the first truly successful attempts for translating a sentence to an expression was SemUnify \cite{kushman-barzilay-2013-using}, but it relied on prior domain knowledge and so it was limited in its application. The followup to this was a generalized regex synthesis model called Deep-Regex \cite{locascio-etal-2016-neural} that took advantage of the advent of deep learning. Deep-Regex utilizes a recurrent neural network architecture with attention for the translation task, specifically using LSTM (Long Short-term Memory) cells operating after a word-embedding layer. The LSTMs consist of encoders and decoders which encode the inputted embeddings for the input text description which are decoded into the embeddings for the outputted regular expression. However, since Deep-Regex subscribes to the syntactic approach, the optimal parameters are generated through maximum likelihood estimation (MLE) which discourages the translation of semantically equivalent expressions and leads to unnecessary drops in accuracy.
+\subsection*{Sequence-to-Sequence Learning}
 
-The current leading language model for regex synthesis, SemRegex \cite{zhong-etal-2018-semregex}, relies on a semantics based approach to determine the correctness of a regular expression. They use policy gradient methods \cite{Williams:92} to determine the gradient of a semantic based objective (as opposed to the MLE) and subsequently optimize. Through the use of a reward function $r$, maximizing the objective function encourages semantic correctness \cite{zhong-etal-2018-semregex}. $r(\cdot)$ is defined as $1$ if the predicted regular expression is semantically equivalent with the label for the given natural language query (the ground truth), and $0$ otherwise. To determine if two regular expressions are semantically equivalent, \cite{zhong-etal-2018-semregex} converts the regular expressions to their minimum DFA (Deterministic Finite Automaton). If these minimum DFAs are equivalent, then the regular expressions themselves are equivalent. 
+Many approaches in translation are based on a common deep learning architecture known as Seq2seq \cite{seq2seq}. Seq2seq models are characterized by their use of recurrent neural networks (RNN) with LSTM (Long Short-Term Memory) \cite{hochreiter1997long} cells. The Seq2seq framework uses an encoder-decoder architecture with two LSTMs: one to generate a fixed-dimensional embedding of a sequence, and another to decode the embedding into a target sequence. LSTMs are used to mitigate the effect of the vanishing gradient problem present in traditional RNNs and allow long term dependencies between several tokens in a sequence. Pairing the Seq2seq architecture with a global attention mechanism \cite{attention} enables better sequence embeddings by dynamically determining the importance of words across the whole sequence. 
+
+\subsection*{Regex Neural Machine Translation}
+
+The first attempts at generalized regex synthesis include a model called DeepRegex \cite{locascio-etal-2016-neural} that is directly based on Seq2seq. Optimal parameters for the underlying encoder and decoder architectures are found through maximum likelihood estimation (MLE). The MLE objective enforces syntactically equivalent expressions and discourages semantically equivalent expressions, leading to overall poorer performance.
+
+However, by wrongfully penalizing correct expressions, syntactic translations approaches can often fail to capture the expressiveness of regular expressions. SemRegex \cite{zhong-etal-2018-semregex} relies on a semantics based approach to determine the correctness of a regular expression. The underlying model is still the same architecture used by DeepRegex, but instead SemRegex uses policy gradient methods \cite{Williams:92} to determine the gradient of a semantic based objective (as opposed to the MLE). Through the use of a reward function $r$, maximizing the objective function encourages semantic correctness \cite{zhong-etal-2018-semregex}. $r(\cdot)$ is defined as $1$ if the predicted regular expression is semantically equivalent with the label for the given natural language query (the ground truth), and $0$ otherwise. To determine if two regular expressions are semantically equivalent, \cite{zhong-etal-2018-semregex} converts the regular expressions to their minimum DFA (Deterministic Finite Automaton). If these minimum DFAs are equivalent, then the regular expressions themselves are equivalent. 
 
 Since there are an infinite number of regular expressions that may have the same minimum DFA as the ground truth, \cite{zhong-etal-2018-semregex} utilizes Monte Carlo sampling to estimate the expected reward of the output of a model. This estimate is then used by the REINFORCE policy gradient model \cite{Williams:92} which utilizes a baseline of the mean reward of the samples to reduce variance. The final gradient estimate looks like the following: \begin{align*} \nabla_{\theta} & J(\theta) \approx \\ & \sum_{(S^{(i)}, R^{(i})} \sum_{j=1}^M \frac{1}{M}(r(R_j)-b) \nabla_{\theta}\log p_{\theta}(R_j | S^{(i)}) \end{align*}
 for $R_1, ..., R_M$ where $R_i$ is a regular expression sampled from the model, and $b = \sum_{j^{\prime}}^M \frac{1}{M}r(R_{j^{\prime}})$ \cite{zhong-etal-2018-semregex}.
 
-More recently, a new semantics-based model SoftRegex \cite{park-etal-2019-softregex} emerged as a an extension of SemRegex. While SemRegex was revolutionary in its approach to Regex generation, it was limited by its computational feasibility. Determining the semantic equivalence of two regular expressions through conversion to DFAs is a known PSPACE-complete problem, and SemRegex's reward function relied on on this step. Furthermore, the reward function was limited in its expressiveness, only outputting a binary value which constrained its ability to describe a spectrum of similarity between two regular expressions. SoftRegex uses an LSTM-based neural network architecture, EQ\_Reg, to estimate the similarity between two regular expressions, assigning a probability of similarity between the expressions, the output of which is the value of the reward function. By softening for the comparison of two regular expressions, SoftRegex trades a negligent drop in performance while greatly speeding up training time \cite{park-etal-2019-softregex}. 
+SoftRegex \cite{park-etal-2019-softregex} extends the work in SemRegex, specifically tackling the issue of computational feasibility. Determining the semantic equivalence of two regular expressions through conversion to DFAs is a known PSPACE-complete problem, and SemRegex's reward function relied on on this step. Furthermore, the reward function was limited in its expressiveness, only outputting a binary value which constrained its ability to describe a spectrum of similarity between two regular expressions. SoftRegex uses an LSTM-based neural network architecture, EQ\_Reg, to estimate the similarity between two regular expressions, assigning a probability of similarity between the expressions, the output of which is the value of the reward function. By softening for the comparison of two regular expressions, SoftRegex trades a negligent drop in performance while greatly speeding up training time \cite{park-etal-2019-softregex}. 
+
+The newest regular expression generation model is TransRegex \cite{Li:2021}. The model uses a similar seq-to-seq model used in DeepRegex and SoftRegex, but adds a Regex Fixer to the end of the model as a second part of the regular expression generation process. Regular expressions generated by the seq-to-seq model may be slightly off, and so to fix these small errors, an algorithm called SYNCORR is introduced. This algorithm defines a neighborhood $N(r)$ where $r$ is the regular expression. It then finds a local maximum with respect to some reward function of the regular expressions in $N(r)$. The SYNCORR fixing algorithm combined with the previous successful seq-to-seq models outperforms all the other models available in current literature.
+
+Other attempts at semantic generation involve the use of a sketch --- an intermediate representation of the regex encapsulating macroscopic structure and fragments, instead of focusing on specific syntax. SketchRegex \cite{sketchregex} parses natural language to generate sketches from the natural language descriptions and then uses a program synthesizer to construct the resulting regex. The parsers come in two varieties: a Seq2seq model similar to DeepRegex or a grammar-based parser. The different parsers allowed the model to be optimized accordingly for low-data scenarios or performance on large datasets.
+
+\subsection*{Transformers}
+Modern NLP models are based on transformer architectures \cite{Vaswani:2017} that make use of encoder-decoder blocks for sequence-to-sequence translation, but without the use of recurrent neural networks. Traditional RNN sequence-to-sequence models aim to encode bidirectional dependencies but still fall victim to forgetting due to the sequential nature of generating text.  Transformers instead rely heavily on self-attention blocks. Self-attention allows embeddings for words in a sequence to derive weighted contextual meaning from the rest of the sequence, importantly enabling the encoding of global dependencies. The attention is computed in an order-agnostic way, and therefore introduces an additional positional embedding layer to relate ordinal information to the attention blocks \cite{2020t5}. Two widely popular transformer models, BERT and T5, could have potential use-cases in machine translation.
+
+BERT trains bidirectional representations using unlabeled text \cite{devlin-etal-2019-bert}. BERT has revolutionized the space of transformer architectures for language problems. BERT can be pre-trained on large natural language corpora, and then used to tokenize sentences and generate representations of the sentences. BERT derives its power by providing representations of tokens with strong contextual embeddings to be used in a variety of different problems, including generating regular expressions. However, BERT functions as an "encoder-only" architecture, being used to generate embeddings that can be used for downstream tasks, which makes it ideal for classification problems but may not be as powerful in end-to-end translation tasks.
+
+T5 returned to the traditional transformer roots, reintroducing the encoder-decoder setup \cite{2020t5}. This architectural shift allowed transformer architecture to become generally applicable to all NLP tasks, by modeling all NLP problems as text-to-text tasks. Unlike BERT, this approach is conducive to solving machine translation tasks end-to-end which is natively a text-to-text task.
+
+\section{Data}
+
+% TODO Clean up section
+The data we are using are mostly comprised of parallel corpora from previous works. There are three main datasets of interest: KB13 \cite{kushman-barzilay-2013-using}, NL-RX Turk and Synth \cite{locascio-etal-2016-neural}, and NL-RX pair data \cite{park-etal-2019-softregex}. The labeled pair data is especially important in the initial experiments for fine-tuning BERT for determining semantic equivalence of regular expressions. These regular expressions are randomly generated by creating and combining data in a tree form \cite{park-etal-2019-softregex} using a process similar to the creation of NL-RX Synth \cite{locascio-etal-2016-neural}, and then labels the pairs. This process is extended to provide additional regular expression data for pre-training BERT embeddings on the regex language. 
+
+% Move from here, maybe to future work?
+Two more recent datasets have been created for evaluating the generation of regex: StackOverflow \cite{sketchregex} and StructuredRegex \cite{structuredregex}. The StackOverflow and StructuredRegex add a significant amount of complexity in regular expressions compared to the previous three datasets that can be included as training and testing samples to better evaluate regex generation.
+
+\section{Method}
+
+We explored two avenues of incorporating transformer-based models for this translation task.
+
+\subsection{Improving the EQ\_Reg Model}
+The first was to improve upon on SoftRegex through architectural changes in computing the similarity score and optimization of the policy gradient and a different optimization to improve accuracy and increase speed.
+
+The EQ\_Reg model receives two regular expressions as input and passes each two separate LSTM layers to generate a latent vector representation. The latent vectors are concatenated and passed through a series of fully connected layers to generate a similarity measurement between 0 and 1. Instead of using an RNN architecture to generate latent vector representations, we switch to a BERT model to generate the latent vectors. BERT embeddings generally outperforms RNNs on downstream tasks for longer sequences due to the additional information incorporated through a positional embedding layer \cite{devlin-etal-2019-bert}.
+
+\textbf{ReBERTh:} We pre-trained a RoBERTa model and tokenizer at several different sizes \cite{roberta}. RoBERTa is an more optimized version of BERT, introducing several improvements such as removing the next sentence prediction objective, training on longer sequences, and dynamically changing masking patterns applied to the training set. These optimizations and more are why RoBERTa consistently performs better than BERT on common metrics \cite{roberta}.
+
+In order to pretrain the BERT model, we generated a large corpus of approximately 300k regular expressions using a script provided in DeepRegex that was used to create the NL-RX-Synth dataset \cite{locascio-etal-2016-neural}. However since the regex is generated probabilistically with a relatively limited amount of tokens, we deduplicated the corpus to end up with approximately 60k expressions.
+
+After creating the pretraining corpus, we trained four ReBERTh models with hyperparameters mimicking that of \texttt{bert-base}, \texttt{bert-medium}, \texttt{bert-small}, and \texttt{bert-mini}. Each model was trained for 5 epochs, ultimately limited by the amount of compute available. We used only \texttt{ReBERTh-base}
+
+and model to replace the LSTM that SoftRegex uses. The SoftRegex model creates two LSTM models. Each regular expression in the pair is inputted to one of the LSTM models. The embeddings are concatenated together and then runs it through a few layers in a neural network, including a softmax layer, to get a label for whether or not the two regular expressions are equivalent or not. We've replaced the LSTM models with pretrained BERT models (bert-base-cased and bert-large-cased). In the pre-processing, we ensure we are tokenizing the regular expressions using our BERT model. We then create two BERT models, one for each regular expression in the pair. The BERT models will output representations of each of the regular expressions, which will be concatenated together and run through a linear layer and a softmax activation before being outputted. 
+
+\textbf{Changing the Policy Gradient:} Now, looking at improving the REINFORCE algorithm, there are a number of different optimizations that could be used. One particular place to improve upon is using a more optimal baseline. While the average baseline used in SemRegex and SoftRegex generally works well \cite{Williams:92}, we want to explore how much of a performance improvement there would be if the optimal baseline is used. Looking at the gradient estimate defined earlier, we would want to replace the baseline $b$ with this optimal baseline instead of just using the average reward. The optimal baseline, as derived in \cite{peters-schaal-2008}, would look like: $$ b = \frac{\sum_{j=1}^M \frac{1}{M} (\nabla_{\theta} \log p_{\theta}(R_j | S^{(i)}))^2 r(R_j)}{\sum_{j=1}^M \frac{1}{M} (\nabla_{\theta} \log p_{\theta}(R_j | S^{(i)}))^2}$$ By using the optimal baseline, we are decreasing the variance of the policy gradient model without increasing bias, which should provide improvements in the performance of the model. However, after further research, we realized that this sort of optimization doesn't provide any reasonable improvement to the model \cite{peters-schaal-2008}. The vanilla policy gradient with the baseline set to be the average reward does well enough, without excessive computation. We decided not to follow the plan to optimize the baseline.
+
+\subsection{Fine-tuning T5}
+
+We fine-tuned a T5 model for regex translation. T5 is a large transformer model pretrained on large English corpora and is quite successful in transfer learning settings \cite{2020t5}. Additionally, it was already designed for sequence-to-sequence tasks, so it is an ideal candidate for syntactic translation similar to DeepRegex. , so after adjusting training data to fit the expected structure for translation tasks and fine-tuning the model, we can easily evaluate performance on the existing datasets.
+
+% Write here the exact specifications of the T5 model we use
+We used the \texttt{t5-base} model and tokenizer from \texttt{huggingface} \cite{2020t5}. In order to enable translation, we prepended each of the English queries from the evaluation datasets, KB13, NL-RX-Synth, and NL-RX-Turk with the task description "translate English to Regex:". The T5 model was separately fine-tuned on each dataset with a learning rate of $3 \cdot 10^{-4}$ for $35$ epochs. 
+
+% Something more specific about T5
+
+\section{Results and Analysis}
 
 
-\section{Outline for Re-Gen}
 
-We hope to improve upon on SoftRegex through architectural changes in computing the similarity score and optimization of the policy gradient add a different optimization to improve accuracy and increase speed.
+\begin{table}
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+ & \textbf{KB-13} & \textbf{NL-RX Turk} & \textbf{NL-RX Synth}\\
+\hline
+\textbf{T5} & 13.1\% & 5.6\% & 11.6\% \\
+\textbf{ReBERTh} & 23.9\% & 20.8\% & 24.3\% \\
+\textbf{DeepRegex} & 65.6\% & 58.2\% & 89.7\% \\
+\textbf{SemRegex} & 77.5\% & 61.3\% & 90.2\% \\
+\textbf{SoftRegex} & 78.2\% & 62.8\% & 91.4\% \\\hline
+\end{tabular}
+\caption{Accuracy for different models for each of the three different datasets \cite{park-etal-2019-softregex}.}\label{tab:accents}
+\end{table}
 
-The EQ\_Reg model takes two regular expressions as input and passes it through each of their own LSTMs to generate a latent vector representation. The latent vectors are concatenated and passed through a fully connected layer to generate the similarity measurement. Instead of using an RNN architecture to generate latent vector representations, we can switch to a transformer-based architecture to encode words. Transformer architecture generally outperforms RNNs for longer sequences due to positional embeddings, and have the advantage of pretraining of large corpuses. As additional investigations, we will experiment with adding more downstream fully connected layer and can create an ensemble model for computing the final similarity score. 
+\begin{table}
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Epoch} & \textbf{KB-13} & \textbf{NL-RX Turk} & \textbf{NL-RX Synth}\\
+\hline
+1 & 1.22  & 0.17 & 0.07 \\
+6 & 0.24  & 0.07 & 0.01  \\
+11 & 0.18  & 0.06 & 0.01  \\
+16 & 0.17  & 0.06 & 0.01  \\
+21 & 0.15 & 0.06 & 0.01  \\
+26 & 0.15  & 0.06 & 0.01  \\
+31 & 0.15  & 0.06 & 0.01 \\\hline
+\end{tabular}
+\caption{Validation Loss during the training of the T5 algorithm every 5th epoch for three different datasets.}\label{tab:accents}
+\end{table}
 
-Now, looking at improving the REINFORCE algorithm, there are a number of different optimizations that could be used. One particular place to improve upon is using a more optimal baseline. While the average baseline used in SemRegex and SoftRegex generally works well \cite{Williams:92}, we want to explore how much of a performance improvement there would be if the optimal baseline is used. Looking at the gradient estimate defined earlier, we would want to replace the baseline $b$ with this optimal baseline instead of just using the average reward. The optimal baseline, as derived in \cite{peters-schaal-2008}, would look like: $$ b = \frac{\sum_{j=1}^M \frac{1}{M} (\nabla_{\theta} \log p_{\theta}(R_j | S^{(i)}))^2 r(R_j)}{\sum_{j=1}^M \frac{1}{M} (\nabla_{\theta} \log p_{\theta}(R_j | S^{(i)}))^2}$$ By using the optimal baseline, we are decreasing the variance of the policy gradient model without increasing bias, which should provide improvements in the performance of the model. However, since there is more computation required to compute the baseline for each sampled expression at each iteration, there is far more computation, which may slow down the algorithm.
+\begin{table}
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+ & \textbf{KB-13} & \textbf{NL-RX Turk} & \textbf{NL-RX Synth}\\
+\hline
+\textbf{(1)} & 13.1\% & 5.6\% & 11.6\% \\
+\textbf{(2)} & 29.9\% & 8.4\% & 24.4\% \\\hline
+\end{tabular}
+\caption{Accuracy comparison between the full dataset (1) and a subset of the dataset containing regular expressions of length less than 15 characters (2).}\label{tab:accents}
+\end{table}
 
-The authors (Parth and Kunal) are both working on this project. They will divide up the work equally and work on different parts of the project together. This includes writing the code, running experiments, and writing the paper.
+% TODO fix this section
+\subsection*{Evaluating Performance}We then determined accuracy using the minimum DFA of each regular expression by comparing the gold regular expression's minimum DFA with the generated regular expression's minimum DFA. 
+
+% TODO Clean up section
+\subsection*{T5 Results and Analysis}
+We split each dataset into three parts where 65\% of the data is used for training, 10\% is used for validation, and the rest is used as a test set. The T5 model is trained using the training data. At each epoch the model is evaluated on its performance using the validation set. The accuracy is then computed at the end of the $35$ epochs by running the model on the unseen data in the test set. We compare the minimum DFAs of both the generated regular expression and the gold regular expressions to determine if the generated regular expression is correct while computing the accuracy. As we see in Table 2, the validation loss for all three goes down as the training commences. However, as we see in Table 1, the accuracy of the model isn't great. While T5 does seem to train on regular expressions and is able to output correct regular expressions for a decent amount of unseen data, it does poorly overall and is not a great model to use for this translation task. We believe one of the reasons behind this is due to the fact that the T5 tokenizer is not optimized for regular expressions. Many characters important to regular expressions like \texttt{\textbackslash} or \texttt{\{ \}} are not showing up as tokens. In fact, they're replaced by the T5 tokenizer as unknown tokens. To fix this, we would train a T5 tokenizer using regular expression data. However, due to our lack of readily available GPU clusters, we were unable to perform this optimization. 
+
+An interesting finding from our analysis of the T5 results shed light to an interesting pattern. We found that the model tended to do significantly better on regex data where the regular expression was shorter. In Table 3, you can see how the accuracy significantly improved when we restricted the data to only regular expressions with less than 15 characters. This seems to imply that the model does better when there are few characters. This could be a product of fewer epochs being used to train the model, or it could be the result of structure of the data we have at our disposal.
+
+\subsection*{BERT Model Results and Analysis}
 
 
+\begin{table}
+\centering
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{Step} & \textbf{base} & \textbf{medium} & \textbf{small} & \textbf{mini} \\
+\hline
+500 & 2.53  & 2.94 & 3.09 & 4.09 \\
+1000 & 1.42  & 1.65 & 1.74 & 2.67 \\
+1500 & 1.17  & 1.37 & 1.43 & 2.13 \\
+2000 & 1.00  & 1.21 & 1.29 & 1.82 \\
+2500 & 0.84 & 1.10 & 1.20 & 1.67 \\
+3000 & 0.74  & 1.00 & 1.14 & 1.56 \\
+3500 & 0.65  & 0.93 & 1.08 & 1.48 \\
+4000 & 0.60  & 0.87 & 1.04 & 1.45 \\
+4500 & 0.56  & 0.84 & 1.00 & 1.40 \\
+5000 & 0.53  & 0.81 & 0.98 & 1.39 \\\hline
+\end{tabular}
+\caption{Training loss per training step for different BERT models trained to be used in reBERTh.}\label{tab:accents}
+\end{table}
+
+\begin{figure}
+\includegraphics[width=8cm, height=6cm]{pic.png}
+\caption{Validation Reward while running policy gradient on three different datasets}\label{tab:accents}
+\end{figure}
+
+We trained our BERT based model reBERTh... % TODO: Talk about what was done to train the model
+
+One of the reasons why we believe the policy gradient algorithm which used reBERTh had its validation reward continue to go up while the accuracy stayed the same was due to the fact that the reBERTh model was not especially great. Even though the reBERTh model itself is poor at generating correct reward values, the policy gradient model would slowly be encouraged towards different paths for generating the regular expression by the flawed reward function, causing the validation reward to go up. However, these paths are still fundamentally flawed, and only entrench the naive classification done at the first epoch. As a result, the accuracy doesn't change as the policy gradient algorithm runs.
+
+\section{Conclusion}
+
+\section{Future Work}
+One problem we had right from the start was the lack of available compute clusters to train these large complex models. We had to make do with the limited GPU resources on Google Colab. We tried to get around this by training our models for fewer epochs or on smaller datasets, or using models and tokenizers pretrained on smaller datasets. In any case, our models were never going to perform at its peak possible performance. In addition, due to the rate limiting Google Colab does on their GPU usage, we have fewer opportunities to run experiments. As a result, we are unable to fully do hyperparameter tuning to change things like the learning rate to improve the model. In the future, we hope to gain access to a GPU cluster to improve the models we discuss in this paper.
+
+
+
+% Our preliminary experiment involved editing the SoftRegex code to replace the LSTMs with BERT models. We also edited how the model was tokenized by switching from a basic tokenizer to the BERT tokenizer. We were able to successfully implement it, but the model is infeasible to run, and could not be trained past two epochs on the data. Since BERT is trained on natural language expressions and we could not train for a significant number of epochs, this change provided no performance improvement.
+
+% To follow-up with this attempt, we are planning on using a smaller BERT model in order to be able to complete the run successfully. We also plan on experimenting with the complexity of the neural network so see if that can improve the model. 
+
+% The other optimization we proposed was to improve the baseline of the policy gradient algorithm, REINFORCE \cite{Williams:92}. 
+
+% add Bert
+
+% While testing the model with bert-mini and bert-small may provide an improvement since it may be much more computationally feasible to train for more epochs, this will just be used as a minor benchmark. The BERT models are all trained on natural language corpora that do not have much relation in the regular expression domain. We plan to use generated NL-RX data from DeepRegex scripts \cite{locascio-etal-2016-neural} to generate expression to pre-train a BERT model from scratch on regex. This allows a much greater degree of flexibility in using a simpler model architecture and limiting vocabulary. Regular expressions as a language are much simpler than natural languages that allows us to reasonably expect encodings with smaller models to perform well. Additionally, it can help significantly speed up pre-training and fine-tuning as computational feasibility of BERT is a concern. After pre-training BERT with new examples of regular expressions, we can fine-tune BERT as before to insert as the new EQ\_Reg model and evaluate its performance.
+
+
+
+
+% \section{Evaluation Strategy}
+
+% Most if not all of our data described above comes with labeled train and test data. After training the models, we will evaluate the accuracy on the StackOverflow, KB13, and NL-RX datasets in order to compare performance across as many previous models as possible. Most of the models studied evaluate their performance on KB13 and NL-RX datasets which means we do not have to re-evaluate DeepRegex, SemRegex, SoftRegex, SketchRegex, and TransRegex on any of these datasets. Performance is measured by DFA accuracy which checks whether the generated regex is semantically equivalent to the target regex rather requiring than exact syntactic equivalence.
 
 % \paragraph{\LaTeX-specific details:}
 % For an anonymized submission, ensure that {\small\verb|\aclfinalcopy|} at the top of this document is commented out, and that you have filled in the paper ID number (assigned during the submission process on softconf) where {\small\verb|***|} appears in the {\small\verb|\def\aclpaperid{***}|} definition at the top of this document.
